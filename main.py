@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlmodel import Session, create_engine, SQLModel
-from model import User, Task
+from app.models.user import User
+from app.models.task import Task
 
 app = FastAPI(title="testdb")
 engine = create_engine("sqlite:///database.db")
@@ -15,7 +16,7 @@ def create_account(login: str, password: str):
         session.commit()
         session.refresh(user)
         return user
-    
+
 @app.get("/account/get/{user_id}/")
 def get_account_info(user_id: int):
     with Session(engine) as session:

@@ -1,2 +1,3 @@
 SQLModel
 fastapi[standard]
+alembic
