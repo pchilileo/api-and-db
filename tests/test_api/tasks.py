@@ -6,6 +6,6 @@ from sqlmodel import select
 router = APIRouter()
 
 @router.get("/tasks/")
-def get_tasks(Session = Depends(get_session)):
+def get_tasks(session = Depends(get_session)):
     tasks = select(Task).all()
     return tasks

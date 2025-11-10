@@ -1,37 +1,49 @@
-from fastapi import Depends, APIRouter
-from app.models.user import User
+from fastapi import Depends, APIRouter, HTTPException, Request
+from pydantic import ValidationError
 from app.database import get_session
-from app.schemas.user import *
-from sqlmodel import select
+import app.schemas.user as UserSchema
+import app.services.user_service as user_service
+import json
 
 router = APIRouter()
 
-@router.post("/")
-def create_account(request: PostAccountRequest,
-                   Session = Depends(get_session)):
-    if request.login is not None and request.password is not None:
-        if select(User).where(User.login == request.login):
-            return {"status": "failure", 
-                    "message": "Login already taken"}
-        else:
-            user = User(login=request.login, 
-                        password=request.password)
-            Session.add(user)
-            Session.commit()
-            Session.refresh(user)
-            return {"status": "sucess", 
-                    "user": user}
-    else:
-        return {"status": "failure", 
-                "message": "Dont get login or password"}
+@router.post("/",
+             openapi_extra={
+                 "requestBody": {
+                     "content": {"application/x-json": {"schema": UserSchema.PostAccountRequest.model_json_schema()}},
+                     "required": True}})   
+async def create_account(request: Request,
+                         session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Invalid JSON")
+    try:
+        user = UserSchema.PostAccountRequest.model_validate(data)
+        return user_service.create_account(user, session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
+
+@router.put("/",
+             openapi_extra={
+                 "requestBody": {
+                     "content": {"application/x-json": {"schema": UserSchema.PutAccountRequest.model_json_schema()}},
+                     "required": True}})   
+async def update_password(request: Request,
+                          session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Invalid JSON")
+    try:
+        user = UserSchema.PutAccountRequest.model_validate(data)
+        return user_service.update_password(user, session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
 
 @router.get("/{user_id}/")
-def get_account(user_id: int, 
-                Session = Depends(get_session)):
-    user = select(User).where(User.id == user_id)
-    if user:
-        return {"status": "sucess", 
-                "user": user}
-    else:
-        return {"status": "failure", 
-                "message": "User not found"}
+async def get_account(user_id: int, 
+                session = Depends(get_session)):
+    return user_service.get_account(user_id, session)
