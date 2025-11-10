@@ -1,3 +1,4 @@
 SQLModel
 fastapi[standard]
 alembic
+python-dotenv

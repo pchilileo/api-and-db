@@ -1,6 +1,7 @@
 from fastapi import Depends, APIRouter
 from app.models.user import User
 from app.database import get_session
+from sqlmodel import select
 
 router = APIRouter()
 
@@ -8,7 +9,7 @@ router = APIRouter()
 def authenticate(login: str, 
                  password: str,
                  Session = Depends(get_session)):
-    user = Session.query(User).filter(User.login == login, User.password == password).first()
+    user = select(User).where(User.login == login, User.password == password)
     if user:
         return {"status": "success", "user_id": user.id}
     else:

@@ -1,93 +1,77 @@
-from fastapi import Depends, APIRouter
-from app.models.task import Task
+from fastapi import Depends, APIRouter, Request, HTTPException
+from pydantic import ValidationError
+import app.schemas.task as TaskSchema
 from app.database import get_session
 from app.schemas.task import *
-
+import app.services.task_service as task_service
+import yaml
 
 router = APIRouter()
 
-@router.post("/")
-def create_tasks(request: PostTaskRequest,
-                Session = Depends(get_session)):
-    task = Task(user_id = request.user_id, 
-                name=request.name, 
-                description=request.description, 
-                deadline=request.deadline, 
-                status=request.status)
-    Session.add(task)
-    Session.commit()
-    Session.refresh(task)
-    return {"status": "succes", 
-            "task": task}
+@router.post("/",
+            openapi_extra={
+                "requestBody": {
+                    "content": {"application/x-yaml": {"schema": TaskSchema.PostTaskRequest.schema()}},
+                    "required": True}})
+async def create_tasks(request: Request, Session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = yaml.safe_load(raw_body)
+    except yaml.YAMLError:
+        raise HTTPException(status_code=422, detail="Invalid YAML")
+    try:
+        task = TaskSchema.PostTaskRequest.model_validate(data)
+        return task_service.create_tasks(task, Session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
     
-@router.put("/")
-def update_tasks(request: PutTasksRequest,
-                Session = Depends(get_session)):
-    task = Session.query(Task).filter(Task.id == request.task_id).first()
-    if task: ## ASK HOW
-        if request.name is not None:
-            task.name = request.name
-        if request.description is not None:
-            task.description = request.description
-        if request.deadline is not None:
-            task.deadline = request.deadline
-        if request.status is not None:
-            task.status = request.status
-        Session.commit()
-        Session.refresh(task)
-        return {"status": "succes", 
-                "task": task}
-    else:
-        return {"status": "failure", 
-                "message": "Task not found"}
+@router.put("/",
+            openapi_extra={
+                "requestBody": {
+                    "content": {"application/x-yaml": {"schema": TaskSchema.PutTasksRequest.schema()}},
+                    "required": True}})
+async def update_tasks(request: Request, Session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = yaml.safe_load(raw_body)
+    except yaml.YAMLError:
+        raise HTTPException(status_code=422, detail="Invalid YAML")
+    try:
+        task = TaskSchema.PutTasksRequest.model_validate(data)
+        return task_service.update_tasks(task, Session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
 
-@router.get("/")
-def get_tasks(task_id: Optional[int] = None,
-              user_id: Optional[int] = None,
-              Session = Depends(get_session)):
-    if task_id is not None or user_id is not None:
-        if task_id:
-            task = Session.query(Task).filter(Task.id == task_id).first()
-            if task:
-                return  {"status": "success", 
-                        "task": task}
-            else:
-                return  {"status": "failure", 
-                        "message": "Task not found"}
-        else:
-            tasks = Session.query(Task).filter(Task.user_id == user_id).all()
-        if tasks:
-            return {"status": "success", 
-                    "task": tasks}
-        else:
-            return {"status": "failure", 
-                    "message": "User not found"}
-    else:
-        return {"status": "failure", 
-                "message": "Dont have user_id or task_id"}
+@router.post("/{user_id}/",
+            openapi_extra={
+                "requestBody": {
+                    "content": {"application/x-yaml": {"schema": TaskSchema.GetTaskRequest.schema()}},
+                    "required": True}})
+async def get_tasks(request: Request, Session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = yaml.safe_load(raw_body)
+    except yaml.YAMLError:
+        raise HTTPException(status_code=422, detail="Invalid YAML")
+    try:
+        task = TaskSchema.GetTaskRequest.model_validate(data)
+        return task_service.get_tasks(task, Session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
     
-@router.delete("/")
-def delete_tasks(request: DeleteTasksRequest, 
-                 Session = Depends(get_session)):
-    
-    if request.task_id:
-        task = Session.query(Task).filter(Task.id == request.task_id).first()
-        if task:
-            Session.delete(task)
-            Session.commit()
-            return {"status": "success", 
-                    "message": "Task deleted"}
-        else:
-            return {"status": "failure", 
-                    "message": "Task not found"}
-    else:
-        tasks = Session.query(Task).filter(Task.user_id == request.user_id).all()
-        if tasks:
-            for task in tasks:
-                Session.delete(task)
-            Session.commit()
-            return {"status": "success", 
-                    "message": "All tasks deleted for user"}
-        else:
-            return {"status": "failure", 
-                    "message": "User not found"}
+@router.delete("/",
+            openapi_extra={
+                "requestBody": {
+                    "content": {"application/x-yaml": {"schema": TaskSchema.DeleteTasksRequest.schema()}},
+                    "required": True}})
+async def delete_tasks(request: Request, Session = Depends(get_session)):
+    raw_body = await request.body()
+    try:
+        data = yaml.safe_load(raw_body)
+    except yaml.YAMLError:
+        raise HTTPException(status_code=422, detail="Invalid YAML")
+    try:
+        task = TaskSchema.DeleteTasksRequest.model_validate(data)
+        return task_service.delete_tasks(task, Session)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors(include_url=False))

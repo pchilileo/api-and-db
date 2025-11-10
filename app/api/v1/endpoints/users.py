@@ -2,6 +2,7 @@ from fastapi import Depends, APIRouter
 from app.models.user import User
 from app.database import get_session
 from app.schemas.user import *
+from sqlmodel import select
 
 router = APIRouter()
 
@@ -9,7 +10,7 @@ router = APIRouter()
 def create_account(request: PostAccountRequest,
                    Session = Depends(get_session)):
     if request.login is not None and request.password is not None:
-        if Session.query(User).filter(User.login == request.login).first():
+        if select(User).where(User.login == request.login):
             return {"status": "failure", 
                     "message": "Login already taken"}
         else:
@@ -18,7 +19,7 @@ def create_account(request: PostAccountRequest,
             Session.add(user)
             Session.commit()
             Session.refresh(user)
-            return {"status": "succes", 
+            return {"status": "sucess", 
                     "user": user}
     else:
         return {"status": "failure", 
@@ -26,10 +27,10 @@ def create_account(request: PostAccountRequest,
 
 @router.get("/{user_id}/")
 def get_account(user_id: int, 
-                     Session = Depends(get_session)):
-    user = Session.query(User).filter(User.id == user_id).first()
+                Session = Depends(get_session)):
+    user = select(User).where(User.id == user_id)
     if user:
-        return {"status": "succes", 
+        return {"status": "sucess", 
                 "user": user}
     else:
         return {"status": "failure", 

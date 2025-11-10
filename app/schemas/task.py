@@ -18,3 +18,7 @@ class PostTaskRequest(BaseModel):
     description: Optional[str] = None
     deadline: Optional[str] = None
     status: Optional[bool] = False
+
+class GetTaskRequest(BaseModel):
+    task_id: Optional[int] = None
+    user_id: Optional[int]
