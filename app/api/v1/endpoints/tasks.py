@@ -1,68 +1,44 @@
-from fastapi import Depends, APIRouter, Request, HTTPException, Query
-from pydantic import ValidationError
+from fastapi import Depends, APIRouter, Query
 from typing import Annotated
-import app.schemas.task as TaskSchema
+
 from app.database import get_session
 from app.schemas.task import *
+import app.schemas.task as TaskSchema
 import app.services.task_Service as task_Service
-import json
 
 router = APIRouter()
 
 @router.post("/",
-             openapi_extra={
-                "requestBody": {
-                    "content": {"application/x-json": {"schema": TaskSchema.PostTaskRequest.schema()}},
-                    "required": True}})
-async def create_tasks(request: Request, session = Depends(get_session)):
-    raw_body = await request.body()
-    try:
-        data = json.loads(raw_body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=422, detail="Invalid JSON")
-    try:
-        task = TaskSchema.PostTaskRequest.model_validate(data)
-        return task_Service.create_tasks(task, session)
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
+             response_model=TaskSchema.TaskResponse,
+             status_code=201)
+async def create_tasks(request: TaskSchema.PostTaskRequest, 
+                       session = Depends(get_session)
+) -> TaskSchema.TaskResponse:
+    created_task = task_Service.create_tasks(request, session)
+    return TaskSchema.TaskResponse.model_validate(created_task)
     
 @router.put("/",
-             openapi_extra={
-                "requestBody": {
-                    "content": {"application/x-json": {"schema": TaskSchema.PutTasksRequest.schema()}},
-                    "required": True}})
-async def update_tasks(request: Request, session = Depends(get_session)):
-    raw_body = await request.body()
-    try:
-        data = json.loads(raw_body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=422, detail="Invalid JSON")
-    try:
-        task = TaskSchema.PutTasksRequest.model_validate(data)
-        return task_Service.update_tasks(task, session)
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
+            response_model=TaskSchema.TaskResponse,
+            status_code=200)
+async def update_tasks(request: TaskSchema.PutTasksRequest, session = Depends(get_session)
+) -> TaskSchema.TaskResponse:
+    task = task_Service.update_tasks(request, session)
+    return task
 
-@router.get("/",)
-async def get_tasks(user_id: int, task_id: Annotated[int | None, Query()] = None, session = Depends(get_session)):
-    try:
-        return task_Service.get_tasks(user_id, task_id, session)
-    except:
-        raise HTTPException(status_code=422, detail="Invalid parameters")
+@router.get("/",
+            response_model=list[TaskSchema.TaskResponse] | TaskSchema.TaskResponse,
+            status_code=200)
+async def get_tasks(user_id: Annotated[int, Query(gt=0)], 
+                    task_id: Annotated[int | None, Query(gt=0)] = None, 
+                    session = Depends(get_session)
+) -> list[TaskSchema.TaskResponse] | TaskSchema.TaskResponse:
+    task = task_Service.get_tasks(user_id, task_id, session)
+    return task
     
 @router.delete("/",
-             openapi_extra={
-                "requestBody": {
-                    "content": {"application/x-json": {"schema": TaskSchema.DeleteTasksRequest.schema()}},
-                    "required": True}})
-async def delete_tasks(request: Request, session = Depends(get_session)):
-    raw_body = await request.body()
-    try:
-        data = json.loads(raw_body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=422, detail="Invalid JSON")
-    try:
-        task = TaskSchema.DeleteTasksRequest.model_validate(data)
-        return task_Service.delete_tasks(task, session)
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors(include_url=False))
+               status_code=200)
+async def delete_tasks(user_id: Annotated[int, Query(gt=0)], 
+                       task_id: Annotated[int | None, Query(gt=0)] = None, 
+                       session = Depends(get_session)
+) -> None:
+    task_Service.delete_tasks(user_id, task_id, session)

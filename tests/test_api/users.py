@@ -2,7 +2,7 @@ from fastapi import Depends, APIRouter
 from app.models.user import User
 from app.database import get_session
 from sqlmodel import select
-import app.services.user_service as user_service
+import app.services.user_Service as user_Service
 
 router = APIRouter()
 

@@ -1,21 +1,33 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
 from datetime import date
 
-class DeleteTasksRequest(BaseModel):
-    task_id: int
-    user_id: Optional[int] = None
+class TaskBase(BaseModel):
+    name: Annotated[str, Field(min_length=1, max_length=100)]
+    description: Annotated[str | None, Field(None, max_length=500)] = None
+    deadline: Annotated[date | None, Field(None)] = None
+    status: Annotated[bool, Field(False)] = False
 
-class PutTasksRequest(BaseModel):
-    task_id: int
-    name: Optional[str] = None
-    description: Optional[str] = None
-    deadline: Optional[date] = None
-    status: Optional[bool] = None
+class PutTasksRequest(TaskBase):
+    task_id: Annotated[int, Field(gt=0)]
 
-class PostTaskRequest(BaseModel):
-    user_id: int
-    name: str
-    description: Optional[str] = None
-    deadline: Optional[date] = None
-    status: Optional[bool] = False
+class PostTaskRequest(TaskBase):
+    user_id: Annotated[int, Field(gt=0)]
+
+class TaskResponse(TaskBase):
+    task_id: Annotated[int, Field(alias="id")]
+    user_id: Annotated[int, Field(gt=0)]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "task_id": 1,
+                "user_id": 1,
+                "name": "Example Task",
+                "description": "Example task description.",
+                "deadline": "2024-12-31",
+                "status": True
+            }
+        }
+    )
